@@ -1,4 +1,7 @@
 # Landing page design
+Pagina creada con v0 mediante prompts especificos para cada funcion como el panel de administrador que permite cambiar, cargar, eliminar y modifcar imagenes de productos en la pagina principal como la pagina de productos permitiendo una mayor dinamica de administracion de la pagina web. 
+Esta pagina no es para venta online, esta mas enfocada a mostrar los diferentes productos y categorias que el comercio tiene para ofrecer.
+Proximamente implementare una funcion para conectar el Whatsapp de la pagina con cada producto, para consultas directas con el vendedor a partir del numero de telefono. Esta pagina fue pensada para poner a prueba la IA de v0 y comprender sus limitaciones y definciencias, con el tiempo ire adquiriendo mas conocimientos para implementar otras sistemas basados en IA. 
 
 *Automatically synced with your [v0.dev](https://v0.dev) deployments*
 
