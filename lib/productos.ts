@@ -77,100 +77,75 @@ const mockProductos: Producto[] = [
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
-  {
-    id: 6,
-    nombre: "Interruptor Doble",
-    descripcion: "Interruptor eléctrico doble para pared",
-    precio: 15.4,
-    categoria: "Electricidad",
-    imagen_url: "/placeholder.svg?height=250&width=250",
-    activo: true,
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: 7,
-    nombre: "Martillo de Carpintero",
-    descripcion: "Martillo profesional con mango de madera",
-    precio: 28.9,
-    categoria: "Herramientas",
-    imagen_url: "/placeholder.svg?height=250&width=250",
-    activo: true,
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
-  {
-    id: 8,
-    nombre: "Tubería PVC 4 pulgadas",
-    descripcion: "Tubo de PVC para desagües y drenajes",
-    precio: 22.6,
-    categoria: "Agua y Accesorios",
-    imagen_url: "/placeholder.svg?height=250&width=250",
-    activo: true,
-    created_at: "2024-01-01T00:00:00Z",
-    updated_at: "2024-01-01T00:00:00Z",
-  },
 ]
 
+// ===== FUNCIONES PARA PRODUCTOS =====
+
 export async function getProductos(): Promise<Producto[]> {
-  if (!isSupabaseConfigured) {
-    return mockProductos
+  if (!isSupabaseConfigured || !supabase) {
+    return mockProductos.filter((p) => p.activo)
   }
 
   try {
-    const { data, error } = await supabase!.from("productos").select("*").eq("activo", true)
+    const { data, error } = await supabase
+      .from("productos")
+      .select("*")
+      .eq("activo", true)
+      .order("created_at", { ascending: false })
 
     if (error) {
       console.error("Error fetching productos:", error)
-      return []
+      return mockProductos.filter((p) => p.activo)
     }
 
     return data || []
   } catch (error) {
     console.error("Unexpected error fetching productos:", error)
-    return []
+    return mockProductos.filter((p) => p.activo)
+  }
+}
+
+export async function getAllProductosAdmin(): Promise<Producto[]> {
+  if (!isSupabaseConfigured || !supabase) {
+    return mockProductos
+  }
+
+  try {
+    const { data, error } = await supabase.from("productos").select("*").order("created_at", { ascending: false })
+
+    if (error) {
+      console.error("Error fetching productos:", error)
+      return mockProductos
+    }
+
+    return data || []
+  } catch (error) {
+    console.error("Unexpected error fetching productos:", error)
+    return mockProductos
   }
 }
 
 export async function getCategorias(): Promise<string[]> {
-  if (!isSupabaseConfigured) {
+  if (!isSupabaseConfigured || !supabase) {
     const categorias = Array.from(new Set(mockProductos.map((p) => p.categoria)))
     return categorias
   }
 
   try {
-    const { data, error } = await supabase!.from("productos").select("categoria").neq("categoria", null)
+    const { data, error } = await supabase.from("productos").select("categoria").neq("categoria", null)
 
     if (error) {
       console.error("Error fetching categorias:", error)
-      return []
+      const categorias = Array.from(new Set(mockProductos.map((p) => p.categoria)))
+      return categorias
     }
 
     const categorias = Array.from(new Set(data.map((item) => item.categoria)))
-    return categorias
+    return categorias.length > 0 ? categorias : Array.from(new Set(mockProductos.map((p) => p.categoria)))
   } catch (error) {
     console.error("Unexpected error fetching categorias:", error)
-    return []
-  }
-}
-
-export async function getAllProductosAdmin(): Promise<Producto[]> {
-  if (!isSupabaseConfigured) {
-    return mockProductos
-  }
-
-  try {
-    const { data, error } = await supabase!.from("productos").select("*")
-
-    if (error) {
-      console.error("Error fetching productos:", error)
-      return []
-    }
-
-    return data || []
-  } catch (error) {
-    console.error("Unexpected error fetching productos:", error)
-    return []
+    const categorias = Array.from(new Set(mockProductos.map((p) => p.categoria)))
+    return categorias
   }
 }
 
@@ -178,12 +153,22 @@ type ProductInput = Omit<Producto, "id" | "created_at" | "updated_at"> &
   Partial<Pick<Producto, "created_at" | "updated_at">>
 
 export async function createProducto(producto: ProductInput): Promise<Producto | null> {
-  if (!isSupabaseConfigured) {
+  if (!isSupabaseConfigured || !supabase) {
+    console.warn("Supabase not configured, cannot create producto")
     return null
   }
 
   try {
-    const { data, error } = await supabase!.from("productos").insert([producto]).select().single()
+    const { data, error } = await supabase
+      .from("productos")
+      .insert([
+        {
+          ...producto,
+          updated_at: new Date().toISOString(),
+        },
+      ])
+      .select()
+      .single()
 
     if (error) {
       console.error("Error creating producto:", error)
@@ -198,12 +183,21 @@ export async function createProducto(producto: ProductInput): Promise<Producto |
 }
 
 export async function updateProducto(id: number, updates: Partial<ProductInput>): Promise<Producto | null> {
-  if (!isSupabaseConfigured) {
+  if (!isSupabaseConfigured || !supabase) {
+    console.warn("Supabase not configured, cannot update producto")
     return null
   }
 
   try {
-    const { data, error } = await supabase!.from("productos").update(updates).eq("id", id).select().single()
+    const { data, error } = await supabase
+      .from("productos")
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+      .single()
 
     if (error) {
       console.error("Error updating producto:", error)
@@ -218,12 +212,25 @@ export async function updateProducto(id: number, updates: Partial<ProductInput>)
 }
 
 export async function deleteProducto(id: number): Promise<boolean> {
-  if (!isSupabaseConfigured) {
-    return true
+  if (!isSupabaseConfigured || !supabase) {
+    console.warn("Supabase not configured, cannot delete producto")
+    return false
   }
 
   try {
-    const { error } = await supabase!.from("productos").delete().eq("id", id)
+    // Primero obtener el producto para eliminar su imagen
+    const { data: producto } = await supabase.from("productos").select("imagen_url").eq("id", id).single()
+
+    // Eliminar imagen del storage si existe
+    if (producto?.imagen_url && producto.imagen_url.includes("supabase")) {
+      const fileName = producto.imagen_url.split("/").pop()
+      if (fileName) {
+        await supabase.storage.from("productos").remove([fileName])
+      }
+    }
+
+    // Eliminar producto de la base de datos
+    const { error } = await supabase.from("productos").delete().eq("id", id)
 
     if (error) {
       console.error("Error deleting producto:", error)
@@ -233,6 +240,123 @@ export async function deleteProducto(id: number): Promise<boolean> {
     return true
   } catch (error) {
     console.error("Unexpected error deleting producto:", error)
+    return false
+  }
+}
+
+// ===== FUNCIONES PARA SUPABASE STORAGE =====
+
+export async function uploadImageToStorage(file: File): Promise<string | null> {
+  if (!isSupabaseConfigured || !supabase) {
+    console.warn("Supabase not configured, cannot upload image")
+    return null
+  }
+
+  try {
+    // Validar tamaño del archivo (15MB máximo)
+    const maxSize = 15 * 1024 * 1024 // 15MB en bytes
+    if (file.size > maxSize) {
+      throw new Error("El archivo es muy grande. Máximo 15MB permitido.")
+    }
+
+    // Validar tipo de archivo
+    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"]
+    if (!validTypes.includes(file.type)) {
+      throw new Error("Tipo de archivo no válido. Solo se permiten: JPG, PNG, GIF, WebP")
+    }
+
+    // Generar nombre único para el archivo
+    const fileExt = file.name.split(".").pop()
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+
+    // Subir archivo al bucket 'productos'
+    const { data, error } = await supabase.storage.from("productos").upload(fileName, file, {
+      cacheControl: "3600",
+      upsert: false,
+    })
+
+    if (error) {
+      console.error("Error uploading image:", error)
+      throw new Error("Error al subir la imagen: " + error.message)
+    }
+
+    // Obtener URL pública
+    const { data: publicUrlData } = supabase.storage.from("productos").getPublicUrl(fileName)
+
+    return publicUrlData.publicUrl
+  } catch (error) {
+    console.error("Unexpected error uploading image:", error)
+    throw error
+  }
+}
+
+export async function deleteImageFromStorage(imageUrl: string): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) {
+    return false
+  }
+
+  try {
+    // Extraer nombre del archivo de la URL
+    if (!imageUrl.includes("supabase")) {
+      return true // No es una imagen de Supabase, no necesita eliminarse
+    }
+
+    const fileName = imageUrl.split("/").pop()
+    if (!fileName) {
+      return false
+    }
+
+    const { error } = await supabase.storage.from("productos").remove([fileName])
+
+    if (error) {
+      console.error("Error deleting image from storage:", error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error("Unexpected error deleting image:", error)
+    return false
+  }
+}
+
+// ===== FUNCIÓN PARA INICIALIZAR BUCKET =====
+
+export async function initializeStorageBucket(): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) {
+    return false
+  }
+
+  try {
+    // Verificar si el bucket existe
+    const { data: buckets, error: listError } = await supabase.storage.listBuckets()
+
+    if (listError) {
+      console.error("Error listing buckets:", listError)
+      return false
+    }
+
+    const productsBucket = buckets?.find((bucket) => bucket.name === "productos")
+
+    if (!productsBucket) {
+      // Crear bucket si no existe
+      const { error: createError } = await supabase.storage.createBucket("productos", {
+        public: true,
+        allowedMimeTypes: ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"],
+        fileSizeLimit: 15728640, // 15MB
+      })
+
+      if (createError) {
+        console.error("Error creating bucket:", createError)
+        return false
+      }
+
+      console.log("Bucket 'productos' created successfully")
+    }
+
+    return true
+  } catch (error) {
+    console.error("Error initializing storage bucket:", error)
     return false
   }
 }
