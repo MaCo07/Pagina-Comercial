@@ -101,22 +101,16 @@ export default function CatalogoComercio() {
             {/* Contenido de texto */}
             <div className="space-y-8 text-center lg:text-left">
               <div className="space-y-6">
-                {/* Logo principal */}
+                {/* Logo principal - SIN ZOOM */}
                 <div className="flex justify-center lg:justify-start">
                   <div className="w-48 h-48 lg:w-64 lg:h-64">
-                    <ImageModal
+                    <Image
                       src={miNegocio.logo || "/placeholder.svg"}
                       alt={`Logo de ${miNegocio.nombre}`}
-                      trigger={
-                        <Image
-                          src={miNegocio.logo || "/placeholder.svg"}
-                          alt={`Logo de ${miNegocio.nombre}`}
-                          width={256}
-                          height={256}
-                          className="w-full h-full object-contain"
-                          priority
-                        />
-                      }
+                      width={256}
+                      height={256}
+                      className="w-full h-full object-contain"
+                      priority
                     />
                   </div>
                 </div>
@@ -184,7 +178,7 @@ export default function CatalogoComercio() {
         </div>
       </section>
 
-      {/* Categorías Section */}
+      {/* Categorías Section - SIN ZOOM */}
       <section id="categorias" className="py-20" style={{ backgroundColor: miNegocio.colorSecundario }}>
         <div className="container mx-auto max-w-7xl px-4">
           <div className="text-center space-y-4 mb-16">
@@ -209,18 +203,12 @@ export default function CatalogoComercio() {
                   <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer bg-white border-2 border-black/10 hover:border-black/30 h-full flex flex-col">
                     <CardHeader className="p-0">
                       <div className="relative overflow-hidden rounded-t-lg">
-                        <ImageModal
+                        <Image
                           src={categoria.imagen || "/placeholder.svg"}
                           alt={categoria.nombre}
-                          trigger={
-                            <Image
-                              src={categoria.imagen || "/placeholder.svg"}
-                              alt={categoria.nombre}
-                              width={300}
-                              height={200}
-                              className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
-                          }
+                          width={300}
+                          height={200}
+                          className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                         <Badge
                           className="absolute top-2 right-2 text-black border-black text-xs"
@@ -321,7 +309,7 @@ export default function CatalogoComercio() {
         </div>
       </section>
 
-      {/* Productos Destacados Section */}
+      {/* Productos Destacados Section - CON ZOOM */}
       <section id="productos" className="py-20" style={{ backgroundColor: miNegocio.colorSecundario }}>
         <div className="container mx-auto max-w-7xl px-4">
           <div className="text-center space-y-4 mb-16">

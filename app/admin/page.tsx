@@ -50,7 +50,6 @@ import {
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { ImageModal } from "@/components/image-modal"
 import {
   getAllProductosAdmin,
   createProducto,
@@ -151,7 +150,8 @@ export default function AdminPage() {
       activo: producto.activo,
       destacado: producto.destacado || false,
     })
-    setImagePreview(producto.imagen_url)
+    // Corregir el problema de la imagen: asegurar que se muestre la imagen actual
+    setImagePreview(producto.imagen_url || null)
     setImageFile(null)
     setIsDialogOpen(true)
   }
@@ -587,17 +587,11 @@ export default function AdminPage() {
                           {imagePreview && (
                             <div className="relative">
                               <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden border-2 border-dashed border-gray-300">
-                                <ImageModal
+                                <Image
                                   src={imagePreview || "/placeholder.svg"}
                                   alt="Vista previa"
-                                  trigger={
-                                    <Image
-                                      src={imagePreview || "/placeholder.svg"}
-                                      alt="Vista previa"
-                                      fill
-                                      className="object-cover cursor-pointer"
-                                    />
-                                  }
+                                  fill
+                                  className="object-cover"
                                 />
                                 {imageFile && (
                                   <Button
@@ -693,17 +687,12 @@ export default function AdminPage() {
                       <TableRow key={producto.id}>
                         <TableCell>
                           <div className="relative w-12 h-12">
-                            <ImageModal
+                            {/* Corregir problema: mostrar imagen sin modal en la tabla */}
+                            <Image
                               src={producto.imagen_url || "/placeholder.svg?height=48&width=48"}
                               alt={producto.nombre}
-                              trigger={
-                                <Image
-                                  src={producto.imagen_url || "/placeholder.svg?height=48&width=48"}
-                                  alt={producto.nombre}
-                                  fill
-                                  className="object-cover rounded-lg cursor-pointer"
-                                />
-                              }
+                              fill
+                              className="object-cover rounded-lg"
                             />
                           </div>
                         </TableCell>
