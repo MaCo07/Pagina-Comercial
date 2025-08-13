@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import {
   Dialog,
   DialogContent,
@@ -44,9 +45,12 @@ import {
   CheckCircle,
   Home,
   Package,
+  Star,
+  StarOff,
 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
+import { ImageModal } from "@/components/image-modal"
 import {
   getAllProductosAdmin,
   createProducto,
@@ -55,17 +59,14 @@ import {
   getCategorias,
   uploadImageToStorage,
   initializeStorageBucket,
+  toggleProductoDestacado,
+  countProductosDestacados,
+  formatPrice,
+  parsePrice,
+  CATEGORIAS_FIJAS,
   type Producto,
   isSupabaseConfigured,
 } from "@/lib/productos"
-
-const CATEGORIAS_DISPONIBLES = [
-  "Electricidad",
-  "Herramientas",
-  "Materiales de Construcción",
-  "Repuestos en General",
-  "Agua y Accesorios",
-]
 
 export default function AdminPage() {
   const [productos, setProductos] = useState<Producto[]>([])
@@ -77,6 +78,7 @@ export default function AdminPage() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [productosDestacadosCount, setProductosDestacadosCount] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [formData, setFormData] = useState({
@@ -85,6 +87,7 @@ export default function AdminPage() {
     precio: "",
     categoria: "",
     activo: true,
+    destacado: false,
   })
 
   useEffect(() => {
@@ -108,9 +111,14 @@ export default function AdminPage() {
 
   const fetchData = async () => {
     try {
-      const [productosData, categoriasData] = await Promise.all([getAllProductosAdmin(), getCategorias()])
+      const [productosData, categoriasData, destacadosCount] = await Promise.all([
+        getAllProductosAdmin(),
+        getCategorias(),
+        countProductosDestacados(),
+      ])
       setProductos(productosData)
       setCategorias(categoriasData)
+      setProductosDestacadosCount(destacadosCount)
     } catch (error) {
       console.error("Error fetching data:", error)
     }
@@ -123,6 +131,7 @@ export default function AdminPage() {
       precio: "",
       categoria: "",
       activo: true,
+      destacado: false,
     })
     setEditingProduct(null)
     setImagePreview(null)
@@ -137,9 +146,10 @@ export default function AdminPage() {
     setFormData({
       nombre: producto.nombre,
       descripcion: producto.descripcion || "",
-      precio: producto.precio.toString(),
+      precio: formatPrice(producto.precio).replace(" $", ""),
       categoria: producto.categoria,
       activo: producto.activo,
+      destacado: producto.destacado || false,
     })
     setImagePreview(producto.imagen_url)
     setImageFile(null)
@@ -205,10 +215,11 @@ export default function AdminPage() {
       const productData = {
         nombre: formData.nombre.trim(),
         descripcion: formData.descripcion.trim() || null,
-        precio: Number.parseFloat(formData.precio),
+        precio: parsePrice(formData.precio),
         categoria: formData.categoria,
         imagen_url: imagenUrl,
         activo: formData.activo,
+        destacado: formData.destacado,
       }
 
       let success = false
@@ -263,6 +274,33 @@ export default function AdminPage() {
     } catch (error) {
       console.error("Error toggling product status:", error)
       alert("❌ Error inesperado al cambiar el estado")
+    }
+  }
+
+  const handleToggleDestacado = async (producto: Producto) => {
+    try {
+      const result = await toggleProductoDestacado(producto.id, !producto.destacado)
+
+      if (result.success) {
+        await fetchData()
+        alert(`✅ ${result.message}`)
+      } else {
+        alert(`⚠️ ${result.message}`)
+      }
+    } catch (error) {
+      console.error("Error toggling destacado:", error)
+      alert("❌ Error inesperado al cambiar el estado de destacado")
+    }
+  }
+
+  const handlePriceChange = (value: string) => {
+    // Permitir solo números y puntos
+    const cleanValue = value.replace(/[^\d]/g, "")
+    if (cleanValue) {
+      const formatted = formatPrice(Number(cleanValue)).replace(" $", "")
+      setFormData({ ...formData, precio: formatted })
+    } else {
+      setFormData({ ...formData, precio: "" })
     }
   }
 
@@ -323,7 +361,7 @@ export default function AdminPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
@@ -356,6 +394,18 @@ export default function AdminPage() {
                   <p className="text-2xl font-bold text-red-600">{productos.filter((p) => !p.activo).length}</p>
                 </div>
                 <EyeOff className="h-8 w-8 text-red-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-600">Destacados</p>
+                  <p className="text-2xl font-bold text-yellow-600">{productosDestacadosCount}/4</p>
+                </div>
+                <Star className="h-8 w-8 text-yellow-600" />
               </div>
             </CardContent>
           </Card>
@@ -422,14 +472,12 @@ export default function AdminPage() {
                           <Label htmlFor="precio">Precio *</Label>
                           <Input
                             id="precio"
-                            type="number"
-                            step="0.01"
-                            min="0"
                             required
                             value={formData.precio}
-                            onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
-                            placeholder="0.00"
+                            onChange={(e) => handlePriceChange(e.target.value)}
+                            placeholder="20.000"
                           />
+                          <p className="text-xs text-gray-500 mt-1">Formato: 20.000 (sin decimales)</p>
                         </div>
 
                         <div>
@@ -442,7 +490,7 @@ export default function AdminPage() {
                               <SelectValue placeholder="Selecciona una categoría" />
                             </SelectTrigger>
                             <SelectContent>
-                              {CATEGORIAS_DISPONIBLES.map((categoria) => (
+                              {CATEGORIAS_FIJAS.map((categoria) => (
                                 <SelectItem key={categoria} value={categoria}>
                                   {categoria}
                                 </SelectItem>
@@ -460,6 +508,44 @@ export default function AdminPage() {
                             placeholder="Descripción detallada del producto..."
                             rows={4}
                           />
+                        </div>
+
+                        {/* Switches para estado */}
+                        <div className="space-y-4 pt-4 border-t">
+                          <div className="flex items-center justify-between">
+                            <Label htmlFor="activo" className="text-sm font-medium">
+                              Producto Activo
+                            </Label>
+                            <Switch
+                              id="activo"
+                              checked={formData.activo}
+                              onCheckedChange={(checked) => setFormData({ ...formData, activo: checked })}
+                            />
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                              <Label htmlFor="destacado" className="text-sm font-medium">
+                                Producto Destacado
+                              </Label>
+                              <p className="text-xs text-gray-500">
+                                Máximo 4 productos destacados ({productosDestacadosCount}/4)
+                              </p>
+                            </div>
+                            <Switch
+                              id="destacado"
+                              checked={formData.destacado}
+                              onCheckedChange={(checked) => {
+                                if (checked && productosDestacadosCount >= 4 && !editingProduct?.destacado) {
+                                  alert(
+                                    "El espacio de productos destacados está lleno. Deshabilite uno para habilitar otro.",
+                                  )
+                                  return
+                                }
+                                setFormData({ ...formData, destacado: checked })
+                              }}
+                            />
+                          </div>
                         </div>
                       </div>
 
@@ -501,11 +587,17 @@ export default function AdminPage() {
                           {imagePreview && (
                             <div className="relative">
                               <div className="relative w-full h-48 bg-gray-100 rounded-lg overflow-hidden border-2 border-dashed border-gray-300">
-                                <Image
+                                <ImageModal
                                   src={imagePreview || "/placeholder.svg"}
                                   alt="Vista previa"
-                                  fill
-                                  className="object-cover"
+                                  trigger={
+                                    <Image
+                                      src={imagePreview || "/placeholder.svg"}
+                                      alt="Vista previa"
+                                      fill
+                                      className="object-cover cursor-pointer"
+                                    />
+                                  }
                                 />
                                 {imageFile && (
                                   <Button
@@ -592,6 +684,7 @@ export default function AdminPage() {
                       <TableHead>Categoría</TableHead>
                       <TableHead>Precio</TableHead>
                       <TableHead>Estado</TableHead>
+                      <TableHead>Destacado</TableHead>
                       <TableHead>Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -600,11 +693,17 @@ export default function AdminPage() {
                       <TableRow key={producto.id}>
                         <TableCell>
                           <div className="relative w-12 h-12">
-                            <Image
+                            <ImageModal
                               src={producto.imagen_url || "/placeholder.svg?height=48&width=48"}
                               alt={producto.nombre}
-                              fill
-                              className="object-cover rounded-lg"
+                              trigger={
+                                <Image
+                                  src={producto.imagen_url || "/placeholder.svg?height=48&width=48"}
+                                  alt={producto.nombre}
+                                  fill
+                                  className="object-cover rounded-lg cursor-pointer"
+                                />
+                              }
                             />
                           </div>
                         </TableCell>
@@ -620,7 +719,7 @@ export default function AdminPage() {
                           <Badge variant="outline">{producto.categoria}</Badge>
                         </TableCell>
                         <TableCell>
-                          <span className="font-medium">${producto.precio}</span>
+                          <span className="font-medium">{formatPrice(producto.precio)}</span>
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -633,6 +732,25 @@ export default function AdminPage() {
                           >
                             {producto.activo ? "Activo" : "Inactivo"}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleToggleDestacado(producto)}
+                            className={
+                              producto.destacado
+                                ? "text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50"
+                                : "text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+                            }
+                            title={producto.destacado ? "Quitar de destacados" : "Marcar como destacado"}
+                          >
+                            {producto.destacado ? (
+                              <Star className="h-4 w-4 fill-current" />
+                            ) : (
+                              <StarOff className="h-4 w-4" />
+                            )}
+                          </Button>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">

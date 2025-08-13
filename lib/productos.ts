@@ -17,19 +17,30 @@ export type Producto = {
   categoria: string
   imagen_url: string | null
   activo: boolean
+  destacado: boolean
   created_at: string
   updated_at: string
 }
+
+// Categorías fijas definidas
+export const CATEGORIAS_FIJAS = [
+  "Electricidad",
+  "Herramientas",
+  "Materiales de Construcción",
+  "Repuestos en General",
+  "Agua y Accesorios",
+]
 
 const mockProductos: Producto[] = [
   {
     id: 1,
     nombre: "Cable Eléctrico 2.5mm",
     descripcion: "Cable de cobre para instalaciones eléctricas residenciales",
-    precio: 25.5,
+    precio: 25500,
     categoria: "Electricidad",
     imagen_url: "/placeholder.svg?height=250&width=250",
     activo: true,
+    destacado: true,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
@@ -37,10 +48,11 @@ const mockProductos: Producto[] = [
     id: 2,
     nombre: "Taladro Percutor",
     descripcion: "Taladro profesional con función de percusión",
-    precio: 189.0,
+    precio: 189000,
     categoria: "Herramientas",
     imagen_url: "/placeholder.svg?height=250&width=250",
     activo: true,
+    destacado: true,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
@@ -48,10 +60,11 @@ const mockProductos: Producto[] = [
     id: 3,
     nombre: "Cemento Portland",
     descripcion: "Bolsa de cemento de 50kg para construcción",
-    precio: 12.75,
+    precio: 12750,
     categoria: "Materiales de Construcción",
     imagen_url: "/placeholder.svg?height=250&width=250",
     activo: true,
+    destacado: true,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
@@ -59,10 +72,11 @@ const mockProductos: Producto[] = [
     id: 4,
     nombre: "Filtro de Agua",
     descripcion: "Filtro universal para sistemas de agua potable",
-    precio: 35.9,
+    precio: 35900,
     categoria: "Agua y Accesorios",
     imagen_url: "/placeholder.svg?height=250&width=250",
     activo: true,
+    destacado: true,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
@@ -70,14 +84,30 @@ const mockProductos: Producto[] = [
     id: 5,
     nombre: "Tornillos Autorroscantes",
     descripcion: "Caja de 100 tornillos para metal y madera",
-    precio: 8.25,
+    precio: 8250,
     categoria: "Repuestos en General",
     imagen_url: "/placeholder.svg?height=250&width=250",
     activo: true,
+    destacado: false,
     created_at: "2024-01-01T00:00:00Z",
     updated_at: "2024-01-01T00:00:00Z",
   },
 ]
+
+// ===== UTILIDADES PARA FORMATO DE PRECIOS =====
+
+export function formatPrice(price: number): string {
+  const formatted = new Intl.NumberFormat("es-CO", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(price)
+  return `${formatted} $`
+}
+
+export function parsePrice(priceString: string): number {
+  // Remover puntos, espacios y el símbolo $ para obtener solo números
+  return Number(priceString.replace(/[.\s$]/g, ""))
+}
 
 // ===== FUNCIONES PARA PRODUCTOS =====
 
@@ -105,6 +135,32 @@ export async function getProductos(): Promise<Producto[]> {
   }
 }
 
+export async function getProductosDestacados(): Promise<Producto[]> {
+  if (!isSupabaseConfigured || !supabase) {
+    return mockProductos.filter((p) => p.activo && p.destacado).slice(0, 4)
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("productos")
+      .select("*")
+      .eq("activo", true)
+      .eq("destacado", true)
+      .order("updated_at", { ascending: false })
+      .limit(4)
+
+    if (error) {
+      console.error("Error fetching productos destacados:", error)
+      return mockProductos.filter((p) => p.activo && p.destacado).slice(0, 4)
+    }
+
+    return data || []
+  } catch (error) {
+    console.error("Unexpected error fetching productos destacados:", error)
+    return mockProductos.filter((p) => p.activo && p.destacado).slice(0, 4)
+  }
+}
+
 export async function getAllProductosAdmin(): Promise<Producto[]> {
   if (!isSupabaseConfigured || !supabase) {
     return mockProductos
@@ -126,26 +182,44 @@ export async function getAllProductosAdmin(): Promise<Producto[]> {
 }
 
 export async function getCategorias(): Promise<string[]> {
+  // Siempre devolver las categorías fijas
+  return CATEGORIAS_FIJAS
+}
+
+export async function getProductosPorCategoria(): Promise<Record<string, number>> {
   if (!isSupabaseConfigured || !supabase) {
-    const categorias = Array.from(new Set(mockProductos.map((p) => p.categoria)))
-    return categorias
+    const conteo: Record<string, number> = {}
+    CATEGORIAS_FIJAS.forEach((categoria) => {
+      conteo[categoria] = mockProductos.filter((p) => p.categoria === categoria && p.activo).length
+    })
+    return conteo
   }
 
   try {
-    const { data, error } = await supabase.from("productos").select("categoria").neq("categoria", null)
+    const { data, error } = await supabase.from("productos").select("categoria").eq("activo", true)
 
     if (error) {
-      console.error("Error fetching categorias:", error)
-      const categorias = Array.from(new Set(mockProductos.map((p) => p.categoria)))
-      return categorias
+      console.error("Error fetching productos por categoria:", error)
+      const conteo: Record<string, number> = {}
+      CATEGORIAS_FIJAS.forEach((categoria) => {
+        conteo[categoria] = mockProductos.filter((p) => p.categoria === categoria && p.activo).length
+      })
+      return conteo
     }
 
-    const categorias = Array.from(new Set(data.map((item) => item.categoria)))
-    return categorias.length > 0 ? categorias : Array.from(new Set(mockProductos.map((p) => p.categoria)))
+    const conteo: Record<string, number> = {}
+    CATEGORIAS_FIJAS.forEach((categoria) => {
+      conteo[categoria] = data.filter((item) => item.categoria === categoria).length
+    })
+
+    return conteo
   } catch (error) {
-    console.error("Unexpected error fetching categorias:", error)
-    const categorias = Array.from(new Set(mockProductos.map((p) => p.categoria)))
-    return categorias
+    console.error("Unexpected error fetching productos por categoria:", error)
+    const conteo: Record<string, number> = {}
+    CATEGORIAS_FIJAS.forEach((categoria) => {
+      conteo[categoria] = mockProductos.filter((p) => p.categoria === categoria && p.activo).length
+    })
+    return conteo
   }
 }
 
@@ -241,6 +315,68 @@ export async function deleteProducto(id: number): Promise<boolean> {
   } catch (error) {
     console.error("Unexpected error deleting producto:", error)
     return false
+  }
+}
+
+// ===== FUNCIONES PARA PRODUCTOS DESTACADOS =====
+
+export async function countProductosDestacados(): Promise<number> {
+  if (!isSupabaseConfigured || !supabase) {
+    return mockProductos.filter((p) => p.destacado && p.activo).length
+  }
+
+  try {
+    const { count, error } = await supabase
+      .from("productos")
+      .select("*", { count: "exact", head: true })
+      .eq("destacado", true)
+      .eq("activo", true)
+
+    if (error) {
+      console.error("Error counting productos destacados:", error)
+      return mockProductos.filter((p) => p.destacado && p.activo).length
+    }
+
+    return count || 0
+  } catch (error) {
+    console.error("Unexpected error counting productos destacados:", error)
+    return mockProductos.filter((p) => p.destacado && p.activo).length
+  }
+}
+
+export async function toggleProductoDestacado(
+  id: number,
+  destacado: boolean,
+): Promise<{ success: boolean; message: string }> {
+  if (!isSupabaseConfigured || !supabase) {
+    return { success: false, message: "Supabase no configurado" }
+  }
+
+  try {
+    // Si se quiere marcar como destacado, verificar límite
+    if (destacado) {
+      const count = await countProductosDestacados()
+      if (count >= 4) {
+        return {
+          success: false,
+          message: "El espacio de productos destacados está lleno. Deshabilite uno para habilitar otro.",
+        }
+      }
+    }
+
+    const result = await updateProducto(id, { destacado })
+
+    if (result) {
+      return {
+        success: true,
+        message: destacado ? "Producto marcado como destacado" : "Producto removido de destacados",
+      }
+    } else {
+      return { success: false, message: "Error al actualizar el producto" }
+    }
+  } catch (error) {
+    console.error("Error toggling producto destacado:", error)
+    return { success: false, message: "Error inesperado" }
   }
 }
 

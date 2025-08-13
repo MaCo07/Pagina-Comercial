@@ -7,11 +7,18 @@ import { Badge } from "@/components/ui/badge"
 import { Phone, Mail, MapPin, Grid3X3, Calculator } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { getProductos, getCategorias, type Producto } from "@/lib/productos"
+import { ImageModal } from "@/components/image-modal"
+import {
+  getProductosDestacados,
+  getProductosPorCategoria,
+  formatPrice,
+  CATEGORIAS_FIJAS,
+  type Producto,
+} from "@/lib/productos"
 
 export default function CatalogoComercio() {
-  const [productos, setProductos] = useState<Producto[]>([])
-  const [categorias, setCategorias] = useState<string[]>([])
+  const [productosDestacados, setProductosDestacados] = useState<Producto[]>([])
+  const [conteoCategoria, setConteoCategoria] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
 
   // 🎯 PERSONALIZA AQUÍ TU INFORMACIÓN
@@ -24,8 +31,8 @@ export default function CatalogoComercio() {
     direccion: "Módulos mza 128A Casa 5",
     whatsapp: "15551234567",
 
-    logo: "/images/logo-ferreteria-victoria.png", // 🎯 Logo real implementado
-    imagenLocal: "/placeholder.svg?height=400&width=600&text=Foto+del+Local", // 🖼️ Aquí puedes cambiar por la foto real de tu ferretería
+    logo: "/images/logo-ferreteria-victoria.png",
+    imagenLocal: "/placeholder.svg?height=400&width=600&text=Foto+del+Local",
 
     facebook: "https://facebook.com/ferreteria-victoria",
     instagram: "https://instagram.com/ferreteria_victoria",
@@ -36,24 +43,27 @@ export default function CatalogoComercio() {
 
   useEffect(() => {
     async function fetchData() {
-      const [productosData, categoriasData] = await Promise.all([getProductos(), getCategorias()])
-      setProductos(productosData.slice(0, 9))
-      setCategorias(categoriasData)
-      setLoading(false)
+      setLoading(true)
+      try {
+        const [productosData, conteoData] = await Promise.all([getProductosDestacados(), getProductosPorCategoria()])
+        setProductosDestacados(productosData)
+        setConteoCategoria(conteoData)
+      } catch (error) {
+        console.error("Error fetching data:", error)
+      } finally {
+        setLoading(false)
+      }
     }
 
     fetchData()
   }, [])
 
-  const categoriasConConteo = categorias.map((categoria) => {
-    const count = productos.filter((p) => p.categoria === categoria).length
-    return {
-      nombre: categoria,
-      descripcion: `Productos de ${categoria.toLowerCase()}`,
-      imagen: "/placeholder.svg?height=200&width=300",
-      productos: count,
-    }
-  })
+  const categoriasConConteo = CATEGORIAS_FIJAS.map((categoria) => ({
+    nombre: categoria,
+    descripcion: `Productos de ${categoria.toLowerCase()}`,
+    imagen: `/placeholder.svg?height=200&width=300&text=${encodeURIComponent(categoria)}`,
+    productos: conteoCategoria[categoria] || 0,
+  }))
 
   return (
     <div className="min-h-screen bg-background">
@@ -94,13 +104,19 @@ export default function CatalogoComercio() {
                 {/* Logo principal */}
                 <div className="flex justify-center lg:justify-start">
                   <div className="w-48 h-48 lg:w-64 lg:h-64">
-                    <Image
+                    <ImageModal
                       src={miNegocio.logo || "/placeholder.svg"}
                       alt={`Logo de ${miNegocio.nombre}`}
-                      width={256}
-                      height={256}
-                      className="w-full h-full object-contain"
-                      priority
+                      trigger={
+                        <Image
+                          src={miNegocio.logo || "/placeholder.svg"}
+                          alt={`Logo de ${miNegocio.nombre}`}
+                          width={256}
+                          height={256}
+                          className="w-full h-full object-contain"
+                          priority
+                        />
+                      }
                     />
                   </div>
                 </div>
@@ -135,13 +151,19 @@ export default function CatalogoComercio() {
             <div className="flex justify-center lg:justify-end">
               <div className="relative w-full max-w-lg">
                 <div className="relative overflow-hidden rounded-2xl shadow-2xl border-4 border-black/10">
-                  <Image
+                  <ImageModal
                     src={miNegocio.imagenLocal || "/placeholder.svg"}
                     alt={`Fachada de ${miNegocio.nombre}`}
-                    width={600}
-                    height={400}
-                    className="w-full h-80 md:h-96 object-cover"
-                    priority
+                    trigger={
+                      <Image
+                        src={miNegocio.imagenLocal || "/placeholder.svg"}
+                        alt={`Fachada de ${miNegocio.nombre}`}
+                        width={600}
+                        height={400}
+                        className="w-full h-80 md:h-96 object-cover"
+                        priority
+                      />
+                    }
                   />
                   {/* Overlay con información */}
                   <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
@@ -177,7 +199,7 @@ export default function CatalogoComercio() {
               <p className="text-black">Cargando categorías...</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 max-w-6xl mx-auto">
               {categoriasConConteo.map((categoria, index) => (
                 <Link
                   key={index}
@@ -187,29 +209,35 @@ export default function CatalogoComercio() {
                   <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer bg-white border-2 border-black/10 hover:border-black/30 h-full flex flex-col">
                     <CardHeader className="p-0">
                       <div className="relative overflow-hidden rounded-t-lg">
-                        <Image
+                        <ImageModal
                           src={categoria.imagen || "/placeholder.svg"}
                           alt={categoria.nombre}
-                          width={300}
-                          height={200}
-                          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                          trigger={
+                            <Image
+                              src={categoria.imagen || "/placeholder.svg"}
+                              alt={categoria.nombre}
+                              width={300}
+                              height={200}
+                              className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                          }
                         />
                         <Badge
-                          className="absolute top-4 right-4 text-black border-black"
+                          className="absolute top-2 right-2 text-black border-black text-xs"
                           style={{ backgroundColor: miNegocio.colorPrimario }}
                         >
-                          {categoria.productos} productos
+                          {categoria.productos}
                         </Badge>
                       </div>
                     </CardHeader>
-                    <CardContent className="p-6 flex-1 flex flex-col justify-between">
+                    <CardContent className="p-4 flex-1 flex flex-col justify-between">
                       <div>
-                        <CardTitle className="mb-2 text-black group-hover:text-blue-600 transition-colors">
+                        <CardTitle className="mb-2 text-black group-hover:text-blue-600 transition-colors text-sm">
                           {categoria.nombre}
                         </CardTitle>
-                        <CardDescription className="text-black/70">{categoria.descripcion}</CardDescription>
+                        <CardDescription className="text-black/70 text-xs">{categoria.descripcion}</CardDescription>
                       </div>
-                      <div className="mt-3 text-sm text-blue-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="mt-2 text-xs text-blue-600 font-medium opacity-0 group-hover:opacity-100 transition-opacity">
                         Ver productos →
                       </div>
                     </CardContent>
@@ -293,13 +321,13 @@ export default function CatalogoComercio() {
         </div>
       </section>
 
-      {/* Productos Grid Section */}
+      {/* Productos Destacados Section */}
       <section id="productos" className="py-20" style={{ backgroundColor: miNegocio.colorSecundario }}>
         <div className="container mx-auto max-w-7xl px-4">
           <div className="text-center space-y-4 mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-black">Productos Destacados</h2>
             <p className="text-xl text-black/80 max-w-[600px] mx-auto">
-              Una selección de nuestros mejores productos organizados en formato de catálogo
+              Una selección de nuestros mejores productos destacados especialmente para ti
             </p>
           </div>
 
@@ -308,21 +336,40 @@ export default function CatalogoComercio() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black mx-auto mb-4"></div>
               <p className="text-black">Cargando productos...</p>
             </div>
+          ) : productosDestacados.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">⭐</div>
+              <h3 className="text-2xl font-bold text-black mb-2">No hay productos destacados</h3>
+              <p className="text-black/70 mb-4">Los productos destacados aparecerán aquí cuando se configuren</p>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-              {productos.map((producto) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+              {productosDestacados.map((producto) => (
                 <Card
                   key={producto.id}
-                  className="group hover:shadow-xl transition-all duration-300 cursor-pointer bg-white border-2 border-black/10"
+                  className="group hover:shadow-xl transition-all duration-300 cursor-pointer bg-white border-2 border-black/10 relative"
                 >
+                  {/* Badge de destacado */}
+                  <div className="absolute -top-2 -right-2 z-10">
+                    <div className="bg-yellow-400 text-black px-2 py-1 rounded-full text-xs font-bold shadow-lg">
+                      ⭐ Destacado
+                    </div>
+                  </div>
+
                   <CardHeader className="p-0">
                     <div className="relative overflow-hidden rounded-t-lg">
-                      <Image
+                      <ImageModal
                         src={producto.imagen_url || "/placeholder.svg"}
                         alt={producto.nombre}
-                        width={250}
-                        height={250}
-                        className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+                        trigger={
+                          <Image
+                            src={producto.imagen_url || "/placeholder.svg"}
+                            alt={producto.nombre}
+                            width={250}
+                            height={250}
+                            className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        }
                       />
                       <Badge
                         variant="secondary"
@@ -333,11 +380,14 @@ export default function CatalogoComercio() {
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-6">
+                  <CardContent className="p-4">
                     <div className="space-y-3">
                       <CardTitle className="text-lg text-black">{producto.nombre}</CardTitle>
+                      {producto.descripcion && (
+                        <p className="text-sm text-black/70 line-clamp-2">{producto.descripcion}</p>
+                      )}
                       <div className="flex items-center justify-between">
-                        <span className="text-2xl font-bold text-black">${producto.precio}</span>
+                        <span className="text-xl font-bold text-black">{formatPrice(producto.precio)}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -345,6 +395,15 @@ export default function CatalogoComercio() {
               ))}
             </div>
           )}
+
+          <div className="text-center mt-12">
+            <Button size="lg" asChild className="bg-black text-white hover:bg-black/90">
+              <Link href="/productos">
+                <Grid3X3 className="h-4 w-4 mr-2" />
+                Ver Todos los Productos
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -456,7 +515,7 @@ export default function CatalogoComercio() {
                 Categorías
               </h4>
               <div className="space-y-2 text-sm">
-                {categorias.map((categoria) => (
+                {CATEGORIAS_FIJAS.map((categoria) => (
                   <div key={categoria} className="text-white/80">
                     {categoria}
                   </div>

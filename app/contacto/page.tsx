@@ -62,13 +62,13 @@ export default function ContactoPage() {
           <div className="flex items-center space-x-2">
             <div className="flex items-center space-x-3">
               <Image
-                src="/images/mi-logo.png" // 👈 Cambia por tu logo
-                alt="Logo Mi Ferretería" // 👈 Cambia por tu nombre
+                src="/images/logo-ferreteria-victoria.png"
+                alt="Logo Ferretería Victoria"
                 width={32}
                 height={32}
                 className="rounded"
               />
-              <span className="text-xl font-bold">Mi Ferretería</span> // 👈 Tu nombre aquí
+              <span className="text-xl font-bold">Ferretería Victoria</span>
             </div>
           </div>
           <nav className="hidden md:flex items-center space-x-6">
@@ -311,13 +311,13 @@ export default function ContactoPage() {
               <div className="flex items-center space-x-2">
                 <div className="flex items-center space-x-3">
                   <Image
-                    src="/images/mi-logo.png" // 👈 Cambia por tu logo
-                    alt="Logo Mi Ferretería" // 👈 Cambia por tu nombre
+                    src="/images/logo-ferreteria-victoria.png"
+                    alt="Logo Ferretería Victoria"
                     width={24}
                     height={24}
                     className="rounded"
                   />
-                  <span className="text-xl font-bold">Mi Ferretería</span> // 👈 Tu nombre aquí
+                  <span className="text-xl font-bold">Ferretería Victoria</span>
                 </div>
               </div>
               <p className="text-white/80">
